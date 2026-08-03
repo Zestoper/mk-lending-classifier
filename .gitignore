@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+output.txt
+pages_by_category.txt
+.DS_Store
