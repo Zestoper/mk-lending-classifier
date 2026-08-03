@@ -1,0 +1,198 @@
+[
+  {
+    "page_number": 1,
+    "category": "CREDIT_REPORT",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 2,
+    "category": "URLA_1003",
+    "match_score": 0.047
+  },
+  {
+    "page_number": 3,
+    "category": "CREDIT_REPORT",
+    "match_score": 0.091
+  },
+  {
+    "page_number": 4,
+    "category": "URLA_1003",
+    "match_score": 0.03
+  },
+  {
+    "page_number": 5,
+    "category": "CREDIT_REPORT",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 6,
+    "category": "URLA_1003",
+    "match_score": 0.042
+  },
+  {
+    "page_number": 7,
+    "category": "CREDIT_REPORT",
+    "match_score": 0.078
+  },
+  {
+    "page_number": 8,
+    "category": "TITLE_REPORT",
+    "match_score": 0.907
+  },
+  {
+    "page_number": 9,
+    "category": "CREDIT_REPORT",
+    "match_score": 0.962
+  },
+  {
+    "page_number": 10,
+    "category": "URLA_1003",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 11,
+    "category": "CREDIT_REPORT",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 12,
+    "category": "TITLE_REPORT",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 13,
+    "category": "CREDIT_REPORT",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 14,
+    "category": "URLA_1003",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 15,
+    "category": "CREDIT_REPORT",
+    "match_score": 0.506
+  },
+  {
+    "page_number": 16,
+    "category": "TITLE_REPORT",
+    "match_score": 0.099
+  },
+  {
+    "page_number": 17,
+    "category": "CREDIT_REPORT",
+    "match_score": 0.031,
+    "note": "manually corrected: auto-match picked TitleReport at low score, verified as Credit Score Disclosure"
+  },
+  {
+    "page_number": 18,
+    "category": "TITLE_REPORT",
+    "match_score": 0.047
+  },
+  {
+    "page_number": 19,
+    "category": "CREDIT_REPORT",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 20,
+    "category": "URLA_1003",
+    "match_score": 0.999
+  },
+  {
+    "page_number": 21,
+    "category": "CREDIT_REPORT",
+    "match_score": 0.052
+  },
+  {
+    "page_number": 22,
+    "category": "TITLE_REPORT",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 23,
+    "category": "CREDIT_REPORT",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 24,
+    "category": "URLA_1003",
+    "match_score": 0.061
+  },
+  {
+    "page_number": 25,
+    "category": "CREDIT_REPORT",
+    "match_score": 0.04
+  },
+  {
+    "page_number": 26,
+    "category": "URLA_1003",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 27,
+    "category": "CREDIT_REPORT",
+    "match_score": 0.036
+  },
+  {
+    "page_number": 28,
+    "category": "TITLE_REPORT",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 29,
+    "category": "CREDIT_REPORT",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 30,
+    "category": "URLA_1003",
+    "match_score": 0.095
+  },
+  {
+    "page_number": 31,
+    "category": "CREDIT_REPORT",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 32,
+    "category": "TITLE_REPORT",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 33,
+    "category": "CREDIT_REPORT",
+    "match_score": 0.949
+  },
+  {
+    "page_number": 34,
+    "category": "TITLE_REPORT",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 35,
+    "category": "URLA_1003",
+    "match_score": 0.077
+  },
+  {
+    "page_number": 36,
+    "category": "INCOME_DOC",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 37,
+    "category": "TITLE_REPORT",
+    "match_score": 0.123
+  },
+  {
+    "page_number": 38,
+    "category": "URLA_1003",
+    "match_score": 1.0
+  },
+  {
+    "page_number": 39,
+    "category": "CREDIT_REPORT",
+    "match_score": 1.0
+  }
+]
