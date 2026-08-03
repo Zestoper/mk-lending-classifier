@@ -1,65 +1,65 @@
 import sys
 import json
+import io
 
 import pdfplumber
+import pytesseract
+from pypdf import PdfReader, PdfWriter
 
 # 일부 페이지는 PDF 병합(shuffle) 과정에서 텍스트 전체가 문자 단위로
 # 뒤집혀서 추출된다. 예: "MK LENDING CORP" -> "PROC GNIDNEL KM"
 # 원본(섞이기 전) 개별 문서에는 이 현상이 없었으므로, 병합 도구가
-# 특정 페이지의 인코딩/회전 정보를 잘못 처리해서 생긴 아티팩트로 추정.
+# 특정 페이지에 실제로는 필요 없는 회전 플래그(/Rotate)를 잘못 씌운
+# 것으로 확인했다.
 #
-# 감지 방법: 정상적인 영어 문장이라면 the/and/report 같은 흔한 단어가
-# 그대로 등장해야 한다. 텍스트 전체가 반전되면 이 단어들도 "eht", "dna",
-# "tropeR"처럼 거꾸로 나타나 흔한 단어 목록과 매칭되지 않는다.
-# 따라서 "원문에서 흔한 단어가 몇 개 매칭되는지"와 "뒤집은 문자열에서
-# 몇 개 매칭되는지"를 비교해서, 뒤집었을 때 더 많이 매칭되면
-# "이 페이지는 반전되어 있었다"고 판단한다.
+# 처음엔 "흔한 영어 단어가 정방향/역방향 중 어디에 더 많은지" 세는
+# 휴리스틱으로 감지했었는데, 나중에 PDF 산출물을 직접 눈으로 검증하는
+# 과정에서 pdfplumber가 노출하는 page.rotation(=/Rotate 값)을 그대로
+# 원인으로 확인할 수 있다는 걸 알게 됐다. 휴리스틱은 우연한 단어 충돌로
+# 오탐이 생길 수 있는 반면(예: "No"가 뒤집히면 "oN"이 되어 "on"과 혼동),
+# /Rotate는 PDF 자체에 박힌 값이라 훨씬 결정적(deterministic)이다.
 #
-# 주의: on/or/is/at/by/to/in/of 같은 2글자 단어는 일부러 뺐다.
-# 예를 들어 체크박스의 "No"가 반전되면 "oN"이 되는데, 소문자로 바꾸면
-# 우연히 "on"과 똑같아져서 오탐(false positive)이 생긴다.
-# 실제로 이 문제 때문에 3글자 이상 단어만 남기기로 했다.
-COMMON_WORDS = {
-    "the", "and", "for", "this", "date", "page", "name", "loan",
-    "report", "information",
-}
-
-# 정방향/역방향 매칭 개수가 근소한 차이(동점 포함)일 때는 반전으로
-# 확정 짓지 않기 위한 최소 격차. 실제로 page 23에서 "No"->"oN" 같은
-# 우연한 매칭 때문에 3:3 동점이 나서 반전을 놓친 사례가 있었다.
-REVERSAL_MARGIN = 2
+# 실제 데이터로 검증: package_01 39페이지에서 이 방식으로 분류했을 때
+# 기존 휴리스틱과 정확히 동일한 38/39(97.4%) 결과가 나왔다 — 즉 이
+# 방식이 최소한 이 데이터셋에서는 휴리스틱을 완전히 대체할 수 있다.
+#
+# 90도 회전 페이지는 반전이 아니라 단어 "순서"만 뒤섞이고 개별 단어
+# 철자는 정상이라(정규식 키워드 매칭에는 영향 없음), 여기에 반전을
+# 적용하면 오히려 망가진다. 그래서 180/270도만 반전 대상으로 삼는다.
+REVERSAL_ROTATIONS = (180, 270)
 
 
-def looks_reversed(text: str) -> bool:
-    """text가 반전된 상태로 추출되었는지 판단한다.
+def needs_reversal_fix(rotation: int) -> bool:
+    """페이지의 /Rotate 값(page.rotation)을 보고 반전 복원이 필요한지 결정한다."""
+    return rotation in REVERSAL_ROTATIONS
 
-    휴리스틱이므로 100% 정확하지 않다 — 숫자/표 위주라 단어 자체가
-    거의 없는 페이지는 양쪽 다 매칭 수가 0에 가까워 판단이 애매해질 수 있다.
-    이런 경우 기본값(반전 아님)으로 처리한다.
+
+def ocr_page_text(reader: PdfReader, page_index: int) -> str:
+    """extract_text()가 완전히 실패한(빈 문자열) 페이지를 OCR로 복구한다.
+
+    이런 페이지는 폰트에 문자->유니코드 매핑(ToUnicode CMap)이 없어
+    텍스트 레이어 자체를 못 읽는 경우로 확인됐다(package_02의 11/26/40번
+    페이지). 글자 모양(글리프)은 정상 렌더링되므로, 페이지를 이미지로
+    그려서 OCR로 문자를 인식한다.
+
+    /Rotate 메타데이터가 병합 과정에서 잘못 붙어있는 경우가 많아(원본은
+    똑바른 페이지인데 회전 플래그만 얹힌 상태), 렌더링 전에 회전을 0도로
+    정규화하지 않으면 이미지 자체가 거꾸로/옆으로 나와 OCR도 실패한다.
     """
+    page = reader.pages[page_index]
+    rotation = page.get("/Rotate", 0)
+    if rotation:
+        page.rotate(-rotation)
 
-    def count_common_words(s: str) -> int:
-        # 공백 기준으로 토큰을 나누고, 앞뒤에 붙은 구두점(.,:;()[]'")을
-        # 제거한 뒤 소문자로 바꿔서 COMMON_WORDS 집합에 있는지 확인한다.
-        words = s.split()
-        return sum(1 for w in words if w.strip(".,:;()[]\"'").lower() in COMMON_WORDS)
+    writer = PdfWriter()
+    writer.add_page(page)
+    buf = io.BytesIO()
+    writer.write(buf)
+    buf.seek(0)
 
-    normal_hits = count_common_words(text)
-    # text[::-1] : 문자열 전체를 통째로 뒤집는 슬라이싱 문법.
-    # 만약 원래 텍스트가 반전되어 추출된 상태였다면, 이걸 한 번 더
-    # 뒤집으면 원래의 정상적인 문장으로 복원된다.
-    reversed_hits = count_common_words(text[::-1])
-
-    # 뒤집었을 때 흔한 단어가 REVERSAL_MARGIN개 이상 더 많이 나와야
-    # "반전 상태였다"고 확정한다. 근소한 차이/동점은 우연일 수 있으므로
-    # 반전 아님(기본값)으로 처리한다.
-    return reversed_hits >= normal_hits + REVERSAL_MARGIN
-
-
-def fix_reversed_text(text: str) -> str:
-    """반전된 것으로 판단되면 문자열을 뒤집어 정상 방향으로 복원하고,
-    아니면 원본 그대로 돌려준다."""
-    return text[::-1] if looks_reversed(text) else text
+    with pdfplumber.open(buf) as single_page_pdf:
+        image = single_page_pdf.pages[0].to_image(resolution=200).original
+        return pytesseract.image_to_string(image)
 
 
 def extract_pages(pdf_path: str) -> list[dict]:
@@ -69,28 +69,46 @@ def extract_pages(pdf_path: str) -> list[dict]:
     page_number는 1-indexed.
     """
     pages = []
+    # OCR 폴백(ocr_page_text)에서 페이지 회전 정규화를 하려면 pypdf의
+    # PdfReader가 필요해서, pdfplumber와 별개로 한 번만 열어둔다.
+    reader = PdfReader(pdf_path)
+
     with pdfplumber.open(pdf_path) as pdf:
         for i, page in enumerate(pdf.pages):
             raw_text = page.extract_text()
-            # extract_text()가 None을 줄 수 있으니(스캔 이미지 등),
-            # 이후 로직(looks_reversed의 .split() 등)이 안전하게 동작하도록
-            # 빈 문자열로 먼저 정규화한다.
+            # extract_text()가 None을 줄 수 있으니(폰트 인코딩 문제 등),
+            # 이후 로직이 안전하게 동작하도록 빈 문자열로 먼저 정규화한다.
             raw_text = raw_text if raw_text is not None else ""
 
-            # 반전 여부를 먼저 기록해두고(디버깅/감사용), 그 판단에 따라
-            # 실제 저장할 text는 복원된(정상 방향) 버전으로 바꿔치기한다.
-            reversed_detected = looks_reversed(raw_text)
-            text = fix_reversed_text(raw_text)
+            used_ocr = False
+            reversed_fixed = False
+
+            if not raw_text.strip():
+                # 텍스트 레이어 자체가 비어있는 경우에만 OCR로 폴백한다.
+                # OCR은 느리고 완벽하지 않아서, 정상 추출되는 페이지에는
+                # 쓰지 않는다. OCR은 회전을 이미 정규화한 상태로 렌더링해서
+                # 읽으므로, 아래 반전 로직을 또 적용하면 안 된다.
+                text = ocr_page_text(reader, i)
+                used_ocr = True
+            elif needs_reversal_fix(page.rotation):
+                # /Rotate가 180/270도인 페이지만 문자열을 통째로 뒤집어
+                # 정상 방향으로 복원한다.
+                text = raw_text[::-1]
+                reversed_fixed = True
+            else:
+                text = raw_text
 
             pages.append(
                 {
                     "page_number": i + 1,
                     "text": text,
                     "char_count": len(text),
-                    # 나중에 "이 페이지는 반전 감지로 복원됐다"는 걸 추적하려고
-                    # 남겨두는 플래그. 감지 로직이 틀렸을 가능성도 있으니,
-                    # 이 필드로 어떤 페이지들이 복원 대상이었는지 확인 가능.
-                    "was_reversed": reversed_detected,
+                    # 나중에 "이 페이지는 반전 복원 대상이었다"는 걸
+                    # 추적하려고 남겨두는 플래그.
+                    "was_reversed": reversed_fixed,
+                    # OCR로 복구된 페이지인지 추적(정확도가 상대적으로
+                    # 낮을 수 있음을 나중에 참고하기 위함).
+                    "used_ocr": used_ocr,
                 }
             )
     return pages
@@ -106,15 +124,17 @@ def main():
 
     for p in pages:
         print(f"\n{'=' * 60}")
-        print(f"[Page {p['page_number']}] chars={p['char_count']}")
+        ocr_tag = " [OCR]" if p["used_ocr"] else ""
+        print(f"[Page {p['page_number']}] chars={p['char_count']}{ocr_tag}")
         print("=" * 60)
         if p["char_count"] == 0:
-            print("(텍스트 없음 - 스캔 이미지일 가능성)")
+            print("(텍스트 없음 - OCR도 실패)")
         else:
             print(p["text"])
 
     print(f"\n총 {len(pages)} 페이지, 텍스트 없는 페이지: "
-          f"{sum(1 for p in pages if p['char_count'] == 0)}개")
+          f"{sum(1 for p in pages if p['char_count'] == 0)}개, "
+          f"OCR로 복구된 페이지: {sum(1 for p in pages if p['used_ocr'])}개")
 
 
 if __name__ == "__main__":
