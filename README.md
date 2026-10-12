@@ -54,7 +54,7 @@ python3 split_by_category.py "../data/02.990367284_shuffled.pdf" "../output/pack
   결과가 결정적(deterministic)입니다. package_01 기준 순수 규칙만으로
   38/39(97.4%) 정확도가 나와, 표준 양식 분류에는 규칙 기반이 충분히
   효과적임을 확인했습니다.
-- **LLM 폴백 (상용 API: Groq `llama-3.3-70b-versatile` 1순위 →
+- **LLM 폴백 (상용 API: Groq `openai/gpt-oss-120b` 1순위 →
   Cerebras `llama3.3-70b` 2순위)**: 규칙이 하나도 매칭하지 못한 페이지만
   LLM으로 재분류합니다. 표준 양식 문서에 매 페이지마다 LLM을 호출하는
   것은 비용/속도 면에서 비효율적이고 재현성도 떨어지지만, 규칙만으로는

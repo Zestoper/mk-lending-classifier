@@ -8,7 +8,7 @@ from config import CATEGORIES, OTHER
 
 load_dotenv()
 
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "openai/gpt-oss-120b"  # llama-3.3-70b-versatile 2026-08-16 종료
 CEREBRAS_MODEL = "llama3.3-70b"
 
 CATEGORY_DESCRIPTIONS = {
@@ -62,6 +62,7 @@ def _call_groq(prompt: str) -> str:
         model=GROQ_MODEL,
         messages=[{"role": "user", "content": prompt}],
         temperature=0,
+        extra_body={"reasoning_effort": "low"},  # gpt-oss는 추론형 모델 — 분류는 짧게 생각해도 충분
     )
     return completion.choices[0].message.content
 
